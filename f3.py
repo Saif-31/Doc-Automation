@@ -2,8 +2,6 @@ import os
 import re
 import logging
 from datetime import datetime
-import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
 from docx import Document
 from docx.shared import RGBColor, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -354,284 +352,265 @@ def add_explanatory_table(doc):
     run.font.name = 'Arial'
     run.font.size = Pt(13)
     run.font.color.rgb = RGBColor(255, 232, 191)
+
+# GUI App class - only available when tkinter can be imported
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, scrolledtext
     
-    # p = cell2.add_paragraph("ZAKON")
-    # set_alignment(p, 'center')
-    # set_indents(p, {'right': 48.75})
-    # set_spacing(p, {'line_spacing': 1.6})
-    # run = p.add_run("ZAKON")
-    # run.bold = True
-    # run.font.name = 'Arial'
-    # run.font.size = Pt(18)
-    # run.font.color.rgb = RGBColor(255, 232, 191)
+    class App(tk.Tk):
+        def __init__(self):
+            super().__init__()
+            self.title("Legal Document Processor")
+            self.geometry("700x500")
+            self.orig_path = self.amend_path = self.new_path = ""
+            self.updated_doc = self.diff_doc = None
 
-    # p = cell2.add_paragraph("O RAČUNOVODSTVU")
-    # set_alignment(p, 'center')
-    # set_indents(p, {'right': 48.75})
-    # set_spacing(p, {'line_spacing': 1.0})
-    # run = p.add_run("O RAČUNOVODSTVU")
-    # run.bold = True
-    # run.font.name = 'Arial'
-    # run.font.size = Pt(17)
-    # run.font.color.rgb = RGBColor(255, 255, 255)
+            frame = tk.Frame(self)
+            frame.pack(pady=10, fill="x")
 
-    # p = cell2.add_paragraph('(\"Sl. glasnik RS\", br. 73/2019 i 44/2021 - dr. zakon)')
-    # set_alignment(p, 'center')
-    # set_paragraph_shading(p, '#000000')
-    # set_spacing(p, {'space_before': 5.0, 'space_after': 5.0, 'line_spacing': 1.1})
-    # run = p.add_run('(\"Sl. glasnik RS\", br. 73/2019 i 44/2021 - dr. zakon)')
-    # run.italic = True
-    # run.font.name = 'Arial'
-    # run.font.size = Pt(13)
-    # run.font.color.rgb = RGBColor(255, 232, 191)
+            tk.Label(frame, text="Original Law (.docx):").grid(row=0, column=0, sticky="w")
+            self.entry_orig = tk.Entry(frame, width=60)
+            self.entry_orig.grid(row=0, column=1)
+            tk.Button(frame, text="Browse", command=self.select_original).grid(row=0, column=2)
 
-# App class
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Legal Document Processor")
-        self.geometry("700x500")
-        self.orig_path = self.amend_path = self.new_path = ""
-        self.updated_doc = self.diff_doc = None
+            tk.Label(frame, text="Gov Changes (.docx):").grid(row=1, column=0, sticky="w")
+            self.entry_amend = tk.Entry(frame, width=60)
+            self.entry_amend.grid(row=1, column=1)
+            tk.Button(frame, text="Browse", command=self.select_amendment).grid(row=1, column=2)
 
-        frame = tk.Frame(self)
-        frame.pack(pady=10, fill="x")
+            tk.Label(frame, text="New Law (.docx) for Diff:").grid(row=2, column=0, sticky="w")
+            self.entry_new = tk.Entry(frame, width=60)
+            self.entry_new.grid(row=2, column=1)
+            tk.Button(frame, text="Browse", command=self.select_new).grid(row=2, column=2)
 
-        tk.Label(frame, text="Original Law (.docx):").grid(row=0, column=0, sticky="w")
-        self.entry_orig = tk.Entry(frame, width=60)
-        self.entry_orig.grid(row=0, column=1)
-        tk.Button(frame, text="Browse", command=self.select_original).grid(row=0, column=2)
+            tk.Button(self, text="Process Part A: Generate New.docx", bg="#007ACC", fg="white", command=self.process_part_a).pack(pady=5, fill="x", padx=50)
+            tk.Button(self, text="Process Part B: Generate Colored Diff.docx", bg="#28a745", fg="white", command=self.process_part_b).pack(pady=5, fill="x", padx=50)
+            tk.Button(self, text="Save New.docx", command=lambda: self.save(self.updated_doc, "new")).pack(pady=5, fill="x", padx=50)
+            tk.Button(self, text="Save Colored Diff.docx", command=lambda: self.save(self.diff_doc, "colored_diff")).pack(pady=5, fill="x", padx=50)
 
-        tk.Label(frame, text="Gov Changes (.docx):").grid(row=1, column=0, sticky="w")
-        self.entry_amend = tk.Entry(frame, width=60)
-        self.entry_amend.grid(row=1, column=1)
-        tk.Button(frame, text="Browse", command=self.select_amendment).grid(row=1, column=2)
+            self.log_text = scrolledtext.ScrolledText(self, height=10, state='disabled')
+            self.log_text.pack(pady=10, fill="both", expand=True)
+            self.update_log("Ready.")
 
-        tk.Label(frame, text="New Law (.docx) for Diff:").grid(row=2, column=0, sticky="w")
-        self.entry_new = tk.Entry(frame, width=60)
-        self.entry_new.grid(row=2, column=1)
-        tk.Button(frame, text="Browse", command=self.select_new).grid(row=2, column=2)
+        def update_log(self, msg):
+            self.log_text.config(state='normal')
+            self.log_text.insert(tk.END, f"{datetime.now().strftime('%H:%M:%S')} - {msg}\n")
+            self.log_text.see(tk.END)
+            self.log_text.config(state='disabled')
 
-        tk.Button(self, text="Process Part A: Generate New.docx", bg="#007ACC", fg="white", command=self.process_part_a).pack(pady=5, fill="x", padx=50)
-        tk.Button(self, text="Process Part B: Generate Colored Diff.docx", bg="#28a745", fg="white", command=self.process_part_b).pack(pady=5, fill="x", padx=50)
-        tk.Button(self, text="Save New.docx", command=lambda: self.save(self.updated_doc, "new")).pack(pady=5, fill="x", padx=50)
-        tk.Button(self, text="Save Colored Diff.docx", command=lambda: self.save(self.diff_doc, "colored_diff")).pack(pady=5, fill="x", padx=50)
+        def select_original(self):
+            path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
+            if path:
+                self.orig_path = path
+                self.entry_orig.delete(0, tk.END)
+                self.entry_orig.insert(0, path)
 
-        self.log_text = scrolledtext.ScrolledText(self, height=10, state='disabled')
-        self.log_text.pack(pady=10, fill="both", expand=True)
-        self.update_log("Ready.")
+        def select_amendment(self):
+            path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
+            if path:
+                self.amend_path = path
+                self.entry_amend.delete(0, tk.END)
+                self.entry_amend.insert(0, path)
 
-    def update_log(self, msg):
-        self.log_text.config(state='normal')
-        self.log_text.insert(tk.END, f"{datetime.now().strftime('%H:%M:%S')} - {msg}\n")
-        self.log_text.see(tk.END)
-        self.log_text.config(state='disabled')
+        def select_new(self):
+            path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
+            if path:
+                self.new_path = path
+                self.entry_new.delete(0, tk.END)
+                self.entry_new.insert(0, path)
 
-    def select_original(self):
-        path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
-        if path:
-            self.orig_path = path
-            self.entry_orig.delete(0, tk.END)
-            self.entry_orig.insert(0, path)
+        def process_part_a(self):
+            if not self.orig_path or not self.amend_path:
+                messagebox.showerror("Error", "Select original and gov changes files first.")
+                return
+            self.update_log("Processing Part A...")
+            logging.info("Starting Part A")
 
-    def select_amendment(self):
-        path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
-        if path:
-            self.amend_path = path
-            self.entry_amend.delete(0, tk.END)
-            self.entry_amend.insert(0, path)
+            orig = Document(self.orig_path)
+            self.updated_doc = Document()
+            for block in iter_block_items(orig):
+                if isinstance(block, Paragraph):
+                    p = self.updated_doc.add_paragraph()
+                    deep_copy_paragraph(block, p)
+                elif isinstance(block, Table):
+                    deep_copy_table(block, self.updated_doc)
 
-    def select_new(self):
-        path = filedialog.askopenfilename(initialdir=DEFAULT_DIR, filetypes=[("Word Documents", "*.docx")])
-        if path:
-            self.new_path = path
-            self.entry_new.delete(0, tk.END)
-            self.entry_new.insert(0, path)
+            merge_gazette(orig, Document(self.amend_path), self.updated_doc)
 
-    def process_part_a(self):
-        if not self.orig_path or not self.amend_path:
-            messagebox.showerror("Error", "Select original and gov changes files first.")
-            return
-        self.update_log("Processing Part A...")
-        logging.info("Starting Part A")
+            articles = extract_articles(self.updated_doc)
+            amend_doc = Document(self.amend_path)
+            amendments = [p.text.strip() for p in amend_doc.paragraphs if "prestaju da važe" in p.text]
 
-        orig = Document(self.orig_path)
-        self.updated_doc = Document()
-        for block in iter_block_items(orig):
-            if isinstance(block, Paragraph):
-                p = self.updated_doc.add_paragraph()
-                deep_copy_paragraph(block, p)
-            elif isinstance(block, Table):
-                deep_copy_table(block, self.updated_doc)
+            for inst in amendments:
+                matches = CHANGE_RE.findall(inst)
+                for article_num, stav_num in matches:
+                    aid = f"Član {article_num}"
+                    if aid in articles:
+                        s, e = articles[aid]
+                        old_lines = '\n'.join(self.updated_doc.paragraphs[k].text for k in range(s, e))
+                        new_lines = apply_amendment_text(old_lines, inst)
+                        
+                        # Remove old paras
+                        for k in range(e - 1, s - 1, -1):
+                            self.updated_doc.paragraphs[k]._element.getparent().remove(self.updated_doc.paragraphs[k]._element)
+                        
+                        # Insert new
+                        for i, line in enumerate(new_lines):
+                            new_p = self.updated_doc.add_paragraph(line)
+                            original_format_idx = s + i
+                            if original_format_idx < len(orig.paragraphs):
+                                deep_copy_paragraph(orig.paragraphs[original_format_idx], new_p)
+                            # Ensure article titles have center, Arial 12 bold
+                            if ARTICLE_RE.match(line):
+                                set_alignment(new_p, 'center')
+                                for run in new_p.runs:
+                                    run.bold = True
+                                    run.font.name = 'Arial'
+                                    run.font.size = Pt(12)
 
-        merge_gazette(orig, Document(self.amend_path), self.updated_doc)
+            self.update_log("Part A complete.")
+            messagebox.showinfo("Success", "New.docx generated.")
 
-        articles = extract_articles(self.updated_doc)
-        amend_doc = Document(self.amend_path)
-        amendments = [p.text.strip() for p in amend_doc.paragraphs if "prestaju da važe" in p.text]
+        def process_part_b(self):
+            if not self.orig_path or not self.new_path or not self.amend_path:
+                messagebox.showerror("Error", "Select all files first.")
+                return
+            self.update_log("Processing Part B...")
+            logging.info("Starting Part B")
 
-        for inst in amendments:
-            matches = CHANGE_RE.findall(inst)
-            for article_num, stav_num in matches:
-                aid = f"Član {article_num}"
-                if aid in articles:
-                    s, e = articles[aid]
-                    old_lines = '\n'.join(self.updated_doc.paragraphs[k].text for k in range(s, e))
-                    new_lines = apply_amendment_text(old_lines, inst)
-                    
-                    # Remove old paras
-                    for k in range(e - 1, s - 1, -1):
-                        self.updated_doc.paragraphs[k]._element.getparent().remove(self.updated_doc.paragraphs[k]._element)
-                    
-                    # Insert new
-                    for i, line in enumerate(new_lines):
-                        new_p = self.updated_doc.add_paragraph(line)
-                        original_format_idx = s + i
-                        if original_format_idx < len(orig.paragraphs):
-                            deep_copy_paragraph(orig.paragraphs[original_format_idx], new_p)
-                        # Ensure article titles have center, Arial 12 bold
-                        if ARTICLE_RE.match(line):
-                            set_alignment(new_p, 'center')
-                            for run in new_p.runs:
-                                run.bold = True
-                                run.font.name = 'Arial'
-                                run.font.size = Pt(12)
+            orig = Document(self.orig_path)
+            new_d = Document(self.new_path)
+            gov = Document(self.amend_path)
+            self.diff_doc = Document()
 
-        self.update_log("Part A complete.")
-        messagebox.showinfo("Success", "New.docx generated.")
+            add_explanatory_table(self.diff_doc)
 
-    def process_part_b(self):
-        if not self.orig_path or not self.new_path or not self.amend_path:
-            messagebox.showerror("Error", "Select all files first.")
-            return
-        self.update_log("Processing Part B...")
-        logging.info("Starting Part B")
+            # # Add adjusted title table once
+            # for block in iter_block_items(new_d):
+            #     if isinstance(block, Table):
+            #         target_table = deep_copy_table(block, self.diff_doc)
+            #         for row in target_table.rows:
+            #             for cell in row.cells:
+            #                 set_cell_shading(cell, '#8A084B')
+            #         break
 
-        orig = Document(self.orig_path)
-        new_d = Document(self.new_path)
-        gov = Document(self.amend_path)
-        self.diff_doc = Document()
+            # Prepare texts for diff, normalizing article titles by removing '*'
+            orig_blocks = list(iter_block_items(orig))
+            new_blocks = list(iter_block_items(new_d))
+            orig_texts = []
+            for b in orig_blocks:
+                if isinstance(b, Paragraph):
+                    text = b.text.strip()
+                    orig_texts.append(text)
+                elif isinstance(b, Table):
+                    orig_texts.append('TABLE')
+            new_texts = []
+            for b in new_blocks:
+                if isinstance(b, Paragraph):
+                    text = b.text.strip()
+                    text = text.replace('*', '')
+                    new_texts.append(text)
+                elif isinstance(b, Table):
+                    new_texts.append('TABLE')
 
-        add_explanatory_table(self.diff_doc)
+            matcher = SequenceMatcher(None, orig_texts, new_texts)
 
-        # # Add adjusted title table once
-        # for block in iter_block_items(new_d):
-        #     if isinstance(block, Table):
-        #         target_table = deep_copy_table(block, self.diff_doc)
-        #         for row in target_table.rows:
-        #             for cell in row.cells:
-        #                 set_cell_shading(cell, '#8A084B')
-        #         break
+            for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+                if tag == 'equal':
+                    for k in range(i1, i2):
+                        block = new_blocks[j1 + (k - i1)]
+                        if isinstance(block, Paragraph):
+                            p = self.diff_doc.add_paragraph()
+                            deep_copy_paragraph(block, p)
+                        elif isinstance(block, Table):
+                            deep_copy_table(block, self.diff_doc)
+                elif tag == 'delete':
+                    for k in range(i1, i2):
+                        block = orig_blocks[k]
+                        if isinstance(block, Paragraph):
+                            p = self.diff_doc.add_paragraph('[' + block.text + ']')
+                            deep_copy_paragraph(block, p)
+                            for run in p.runs:
+                                run.font.color.rgb = RGBColor(255, 0, 0)
+                        elif isinstance(block, Table):
+                            deep_copy_table(block, self.diff_doc, color=RGBColor(255, 0, 0))
+                elif tag == 'insert':
+                    for k in range(j1, j2):
+                        block = new_blocks[k]
+                        if isinstance(block, Paragraph):
+                            p = self.diff_doc.add_paragraph('[' + block.text + ']')
+                            deep_copy_paragraph(block, p)
+                            for run in p.runs:
+                                run.font.color.rgb = RGBColor(0, 204, 51)
+                        elif isinstance(block, Table):
+                            deep_copy_table(block, self.diff_doc, color=RGBColor(0, 204, 51))
+                elif tag == 'replace':
+                    for k in range(i1, i2):
+                        block = orig_blocks[k]
+                        if isinstance(block, Paragraph):
+                            p = self.diff_doc.add_paragraph('[' + block.text + ']')
+                            deep_copy_paragraph(block, p)
+                            for run in p.runs:
+                                run.font.color.rgb = RGBColor(255, 0, 0)
+                        elif isinstance(block, Table):
+                            deep_copy_table(block, self.diff_doc, color=RGBColor(255, 0, 0))
+                    for k in range(j1, j2):
+                        block = new_blocks[k]
+                        if isinstance(block, Paragraph):
+                            p = self.diff_doc.add_paragraph('[' + block.text + ']')
+                            deep_copy_paragraph(block, p)
+                            for run in p.runs:
+                                run.font.color.rgb = RGBColor(0, 204, 51)
+                        elif isinstance(block, Table):
+                            deep_copy_table(block, self.diff_doc, color=RGBColor(0, 204, 51))
 
-        # Prepare texts for diff, normalizing article titles by removing '*'
-        orig_blocks = list(iter_block_items(orig))
-        new_blocks = list(iter_block_items(new_d))
-        orig_texts = []
-        for b in orig_blocks:
-            if isinstance(b, Paragraph):
-                text = b.text.strip()
-                orig_texts.append(text)
-            elif isinstance(b, Table):
-                orig_texts.append('TABLE')
-        new_texts = []
-        for b in new_blocks:
-            if isinstance(b, Paragraph):
-                text = b.text.strip()
-                text = text.replace('*', '')
-                new_texts.append(text)
-            elif isinstance(b, Table):
-                new_texts.append('TABLE')
+            # Insert dynamic green reference before changed articles (collect positions first to avoid index shifts)
+            diff_blocks = list(iter_block_items(self.diff_doc))
+            insert_positions = []
+            ref = extract_amending_ref(gov)
+            for idx, block in enumerate(diff_blocks):
+                if isinstance(block, Paragraph) and ARTICLE_RE.match(block.text.strip()) and '*' in block.text:
+                    insert_positions.append(idx)
+            for pos in reversed(insert_positions):
+                ref_p = self.diff_doc.add_paragraph()
+                set_alignment(ref_p, 'center')
+                set_spacing(ref_p, {'space_before': 12.0, 'space_after': 6.0, 'line_spacing': 1.0})
+                run = ref_p.add_run(ref)
+                run.bold = True
+                run.font.name = 'Arial'
+                run.font.size = Pt(12)
+                run.font.color.rgb = RGBColor(0, 204, 51)
+                self.diff_doc._body._element.insert(pos, ref_p._element)
 
-        matcher = SequenceMatcher(None, orig_texts, new_texts)
+            # Add "." spacer after Član 1 body
+            diff_blocks = list(iter_block_items(self.diff_doc))  # Refresh list after insertions
+            for idx, block in enumerate(diff_blocks):
+                if isinstance(block, Paragraph) and block.text.strip() == "Član 1":
+                    spacer = self.diff_doc.add_paragraph(".")
+                    deep_copy_paragraph(block, spacer)
+                    self.diff_doc._body._element.insert(idx + 2, spacer._element)
+                    break
 
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == 'equal':
-                for k in range(i1, i2):
-                    block = new_blocks[j1 + (k - i1)]
-                    if isinstance(block, Paragraph):
-                        p = self.diff_doc.add_paragraph()
-                        deep_copy_paragraph(block, p)
-                    elif isinstance(block, Table):
-                        deep_copy_table(block, self.diff_doc)
-            elif tag == 'delete':
-                for k in range(i1, i2):
-                    block = orig_blocks[k]
-                    if isinstance(block, Paragraph):
-                        p = self.diff_doc.add_paragraph('[' + block.text + ']')
-                        deep_copy_paragraph(block, p)
-                        for run in p.runs:
-                            run.font.color.rgb = RGBColor(255, 0, 0)
-                    elif isinstance(block, Table):
-                        deep_copy_table(block, self.diff_doc, color=RGBColor(255, 0, 0))
-            elif tag == 'insert':
-                for k in range(j1, j2):
-                    block = new_blocks[k]
-                    if isinstance(block, Paragraph):
-                        p = self.diff_doc.add_paragraph('[' + block.text + ']')
-                        deep_copy_paragraph(block, p)
-                        for run in p.runs:
-                            run.font.color.rgb = RGBColor(0, 204, 51)
-                    elif isinstance(block, Table):
-                        deep_copy_table(block, self.diff_doc, color=RGBColor(0, 204, 51))
-            elif tag == 'replace':
-                for k in range(i1, i2):
-                    block = orig_blocks[k]
-                    if isinstance(block, Paragraph):
-                        p = self.diff_doc.add_paragraph('[' + block.text + ']')
-                        deep_copy_paragraph(block, p)
-                        for run in p.runs:
-                            run.font.color.rgb = RGBColor(255, 0, 0)
-                    elif isinstance(block, Table):
-                        deep_copy_table(block, self.diff_doc, color=RGBColor(255, 0, 0))
-                for k in range(j1, j2):
-                    block = new_blocks[k]
-                    if isinstance(block, Paragraph):
-                        p = self.diff_doc.add_paragraph('[' + block.text + ']')
-                        deep_copy_paragraph(block, p)
-                        for run in p.runs:
-                            run.font.color.rgb = RGBColor(0, 204, 51)
-                    elif isinstance(block, Table):
-                        deep_copy_table(block, self.diff_doc, color=RGBColor(0, 204, 51))
+            self.update_log("Part B complete.")
+            messagebox.showinfo("Success", "Colored diff generated.")
 
-        # Insert dynamic green reference before changed articles (collect positions first to avoid index shifts)
-        diff_blocks = list(iter_block_items(self.diff_doc))
-        insert_positions = []
-        ref = extract_amending_ref(gov)
-        for idx, block in enumerate(diff_blocks):
-            if isinstance(block, Paragraph) and ARTICLE_RE.match(block.text.strip()) and '*' in block.text:
-                insert_positions.append(idx)
-        for pos in reversed(insert_positions):
-            ref_p = self.diff_doc.add_paragraph()
-            set_alignment(ref_p, 'center')
-            set_spacing(ref_p, {'space_before': 12.0, 'space_after': 6.0, 'line_spacing': 1.0})
-            run = ref_p.add_run(ref)
-            run.bold = True
-            run.font.name = 'Arial'
-            run.font.size = Pt(12)
-            run.font.color.rgb = RGBColor(0, 204, 51)
-            self.diff_doc._body._element.insert(pos, ref_p._element)
+        def save(self, doc, kind):
+            if not doc:
+                messagebox.showerror("Error", f"Process {kind} first.")
+                return
+            out = filedialog.asksaveasfilename(initialdir=DEFAULT_DIR, defaultextension=".docx", filetypes=[("Word Documents", "*.docx")])
+            if out:
+                doc.save(out)
+                self.update_log(f"{kind.capitalize()} saved to {out}")
+                messagebox.showinfo("Saved", f"{kind.capitalize()} saved to {out}")
 
-        # Add "." spacer after Član 1 body
-        diff_blocks = list(iter_block_items(self.diff_doc))  # Refresh list after insertions
-        for idx, block in enumerate(diff_blocks):
-            if isinstance(block, Paragraph) and block.text.strip() == "Član 1":
-                spacer = self.diff_doc.add_paragraph(".")
-                deep_copy_paragraph(block, spacer)
-                self.diff_doc._body._element.insert(idx + 2, spacer._element)
-                break
-
-        self.update_log("Part B complete.")
-        messagebox.showinfo("Success", "Colored diff generated.")
-
-    def save(self, doc, kind):
-        if not doc:
-            messagebox.showerror("Error", f"Process {kind} first.")
-            return
-        out = filedialog.asksaveasfilename(initialdir=DEFAULT_DIR, defaultextension=".docx", filetypes=[("Word Documents", "*.docx")])
-        if out:
-            doc.save(out)
-            self.update_log(f"{kind.capitalize()} saved to {out}")
-            messagebox.showinfo("Saved", f"{kind.capitalize()} saved to {out}")
+except ImportError:
+    # tkinter not available (e.g., on Streamlit Cloud)
+    print("GUI not available - tkinter not installed")
 
 if __name__ == "__main__":
-    App().mainloop()
+    try:
+        App().mainloop()
+    except NameError:
+        print("GUI not available. Please use the Streamlit interface (st_ui.py) instead.")
